@@ -28,13 +28,42 @@ if (ENABLE_SIGN)
         add_test(sqisign_test_nistapi_${SVARIANT_LOWER} example_nistapi_${SVARIANT_LOWER})
     endforeach()
 
-    # Benchmarking tool
+    # Benchmarking tool - 19/6 - Added _test_nistapi rather than just _nistapi to use their randomness generator for reproducibility (MIGHT BE SLOWER)
     foreach(SVARIANT ${SVARIANT_S})
         string(TOLOWER ${SVARIANT} SVARIANT_LOWER)
         add_executable(benchmark_${SVARIANT_LOWER} benchmark.c)
-        target_link_libraries(benchmark_${SVARIANT_LOWER} PRIVATE sqisign_${SVARIANT_LOWER}_nistapi)
+        target_link_libraries(benchmark_${SVARIANT_LOWER} PRIVATE sqisign_${SVARIANT_LOWER}_nistapi) 
         target_include_directories(benchmark_${SVARIANT_LOWER} PRIVATE ../include ../src/common/generic/include)
         target_compile_definitions(benchmark_${SVARIANT_LOWER} PUBLIC SQISIGN_VARIANT=${SVARIANT_LOWER})
+
+        # Added 19/6 Slow deterministic randomness - terminal output
+        add_executable(benchmark_det_${SVARIANT_LOWER} benchmark.c)
+        target_link_libraries(benchmark_det_${SVARIANT_LOWER} PRIVATE sqisign_${SVARIANT_LOWER}_test_nistapi) 
+        target_include_directories(benchmark_det_${SVARIANT_LOWER} PRIVATE ../include ../src/common/generic/include)
+        target_compile_definitions(benchmark_det_${SVARIANT_LOWER} PUBLIC SQISIGN_VARIANT=${SVARIANT_LOWER})
+
+        # Added 19/6 Fast non-deterministic randomness - binary output
+        add_executable(benchmark_binary_${SVARIANT_LOWER} benchmark_binary.c)
+        target_link_libraries(benchmark_binary_${SVARIANT_LOWER} PRIVATE sqisign_${SVARIANT_LOWER}_nistapi) 
+        target_include_directories(benchmark_binary_${SVARIANT_LOWER} PRIVATE ../include ../src/common/generic/include)
+        target_compile_definitions(benchmark_binary_${SVARIANT_LOWER} PUBLIC SQISIGN_VARIANT=${SVARIANT_LOWER})
+
+        # Added 16/6 - Output binary benchmark tool for telemetry data collection
+        # 19/6 - Added _test_nistapi rather than just _nistapi to use their randomness generator for reproducibility
+        # Slow deterministic output - binary output
+        add_executable(benchmark_binary_det_${SVARIANT_LOWER} benchmark_binary.c)
+        target_link_libraries(benchmark_binary_det_${SVARIANT_LOWER} PRIVATE sqisign_${SVARIANT_LOWER}_test_nistapi)
+        target_include_directories(benchmark_binary_det_${SVARIANT_LOWER} PRIVATE ../include ../src/common/generic/include)
+        target_compile_definitions(benchmark_binary_det_${SVARIANT_LOWER} PUBLIC SQISIGN_VARIANT=${SVARIANT_LOWER})
+    endforeach()
+
+    # Stack memory benchmarking tool
+    foreach(SVARIANT ${SVARIANT_S})
+        string(TOLOWER ${SVARIANT} SVARIANT_LOWER)
+        add_executable(stack_bench_${SVARIANT_LOWER} stack_bench.c)
+        target_link_libraries(stack_bench_${SVARIANT_LOWER} PRIVATE sqisign_${SVARIANT_LOWER}_nistapi)
+        target_include_directories(stack_bench_${SVARIANT_LOWER} PRIVATE ../include)
+        target_compile_definitions(stack_bench_${SVARIANT_LOWER} PUBLIC SQISIGN_VARIANT=${SVARIANT_LOWER})
     endforeach()
 
     # Fuzzing tool -- signature generation

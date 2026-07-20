@@ -34,6 +34,11 @@ bench(size_t runs)
             abort();
     }
 
+    /* --- DISSERTATION MODIFICATION: ZERO-OBSERVER ENTROPY TEST --- */
+    // printf("[!] ZERO-OBSERVER TEST - First 4 bytes of Message 0: %02X %02X %02X %02X\n", 
+    //        m[0][0], m[0][1], m[0][2], m[0][3]);
+    /* ------------------------------------------------------------- */
+
     unsigned long long len;
 
     printf("%s (%zu iterations)\n", CRYPTO_ALGNAME, runs);
@@ -41,6 +46,11 @@ bench(size_t runs)
     BENCH_CODE_1(runs);
     crypto_sign_keypair(pk[i], sk[i]);
     BENCH_CODE_2("keypair");
+
+    /* --- DISSERTATION MODIFICATION: ZERO-OBSERVER ENTROPY TEST --- */
+    printf("[!] First 4 bytes of Secret Key 0: %02X %02X %02X %02X\n", 
+           sk[0][0], sk[0][1], sk[0][2], sk[0][3]);
+    /* ------------------------------------------------------------- */
 
     BENCH_CODE_1(runs);
     len = sm_len;

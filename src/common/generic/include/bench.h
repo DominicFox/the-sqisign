@@ -105,6 +105,13 @@ _TRUNC(uint64_t x)
     cycles_list[i] = cycles2 - cycles1;                                                            \
     cycles += cycles2 - cycles1;                                                                   \
     }                                                                                              \
+    /* --- DISSERTATION MODIFICATION: RAW DATA DUMP --- */                                         \
+    printf(" RAW_%s | ", name);                                                                    \
+    for (size_t idx = 0; idx < count; ++idx) {                                                     \
+        printf("%" _FMT ",", _TRUNC(cycles_list[idx]));                                            \
+    }                                                                                              \
+    printf("\n");                                                                                  \
+    /* ------------------------------------------------ */                                         \
     qsort(cycles_list, count, sizeof(uint64_t), CMPFUNC);                                          \
     uint64_t variance = 0;                                                                         \
     for (size_t i = 0; i < count; ++i) {                                                           \

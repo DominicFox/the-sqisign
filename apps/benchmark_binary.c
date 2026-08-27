@@ -60,7 +60,7 @@ bench(size_t num_keys, size_t runs_per_key, size_t warmup_runs, int mode)
     // =====================================================================
     if (mode == 0) {
         printf("    - Beginning Keygen...\n");
-        // --- THE BURN-IN PHASE ---
+        // --- THE WARMUP PHASE ---
         if (warmup_runs > 0) {
             unsigned char w_pk[CRYPTO_PUBLICKEYBYTES];
             unsigned char w_sk[CRYPTO_SECRETKEYBYTES];
@@ -89,103 +89,11 @@ bench(size_t num_keys, size_t runs_per_key, size_t warmup_runs, int mode)
         printf("    - Keygen Complete: %zu total keys.\n", num_keys);
     }
 
-    
 
     // =====================================================================
-    // MODE 1: SIGN/VERIFY PROFILE (K Keys * M Iterations)
+    // MODE 1: FIXED KEY, RANDOM MESSAGES 
     // =====================================================================
     if (mode == 1) {
-
-        printf("    - Beginning Sign/Verify Loop...\n");
-        
-        FILE *f_pk = fopen("fixed_pk.bin", "rb");
-        FILE *f_sk = fopen("fixed_sk.bin", "rb");
-        if (!f_pk || !f_sk) {
-            fprintf(stderr, "\n[!] FATAL: Could not find key binaries. Run Mode 0 first.\n");
-            abort();
-        }
-        
-        size_t pk_read = fread(pkbuf, 1, num_keys * CRYPTO_PUBLICKEYBYTES, f_pk);
-        size_t sk_read = fread(skbuf, 1, num_keys * CRYPTO_SECRETKEYBYTES, f_sk);
-        if (pk_read != num_keys * CRYPTO_PUBLICKEYBYTES || sk_read != num_keys * CRYPTO_SECRETKEYBYTES) {
-            fprintf(stderr, "\n[!] FATAL: File size mismatch. Did you change --keys between modes?\n");
-            abort();
-        }
-        fclose(f_pk);
-        fclose(f_sk);
-
-        // --- THE BURN-IN PHASE ---
-        if (warmup_runs > 0) {
-            
-            // FIX: Use heap allocation to satisfy strict C compiler flags
-            unsigned char *w_sm = malloc(sm_len);
-            unsigned char *w_m = malloc(m_len);
-            if (!w_sm || !w_m) abort();
-
-            unsigned long long w_len;
-            randombytes(w_m, m_len); // Generate a dummy message
-            
-            for (size_t w = 0; w < warmup_runs; ++w) {
-                w_len = sm_len;
-                crypto_sign(w_sm, &w_len, w_m, m_len, sk[0]); 
-                
-                w_len = m_len;
-                crypto_sign_open(w_m, &w_len, w_sm, sm_len, pk[0]);
-            }
-
-            free(w_sm);
-            free(w_m);
-        }
-        // -------------------------
-        
-        // Allocate K * M rows for the nested loops
-        size_t total_runs = num_keys * runs_per_key;
-        telemetry_data = calloc(total_runs, sizeof(TelemetryRow));
-        rows_to_dump = total_runs;
-
-        // --- THE NESTED BENCHMARK ARCHITECTURE ---
-        for (size_t k = 0; k < num_keys; ++k) {
-            
-            // 1. Re-roll completely fresh messages for this specific key batch
-            for (size_t i = 0; i < runs_per_key; ++i) {
-                if (randombytes(m[i], m_len)) abort();
-            }
-
-            // 2. Sign Loop (Inner)
-            for (size_t i = 0; i < runs_per_key; ++i) {
-                size_t row_idx = (k * runs_per_key) + i;
-                telemetry_data[row_idx].key_index = k; // Tag this telemetry with the key ID
-                
-                len = sm_len;
-                start_time = cpucycles();
-                crypto_sign(sm[i], &len, m[i], m_len, sk[k]); // Use Key K
-                end_time = cpucycles();
-                
-                if (len != sm_len) abort();
-                telemetry_data[row_idx].sign_cycles = (end_time >= start_time) ? (end_time - start_time) : 0;
-            }
-
-            // 3. Verify Loop (Inner)
-            for (size_t i = 0; i < runs_per_key; ++i) {
-                size_t row_idx = (k * runs_per_key) + i;
-                int ret;
-                
-                len = m_len;
-                start_time = cpucycles();
-                ret = crypto_sign_open(m[i], &len, sm[i], sm_len, pk[k]); // Use Key K
-                end_time = cpucycles();
-                
-                if (ret) abort();
-                telemetry_data[row_idx].verify_cycles = (end_time >= start_time) ? (end_time - start_time) : 0;
-            }
-        }
-        printf("    - Sign/Verify Loops Complete: %zu total signatures.\n", total_runs);
-    }
-
-    // =====================================================================
-    // MODE 2: FIXED KEY, RANDOM MESSAGES (Self-Contained Per Batch)
-    // =====================================================================
-    if (mode == 2) {
         printf("    - Running Fixed-Key, Random-Message Suite...\n");
         
         // Allocate buffer space for a single batch keypair
@@ -214,7 +122,7 @@ bench(size_t num_keys, size_t runs_per_key, size_t warmup_runs, int mode)
             int ret = crypto_sign_open(w_msg_out, &msg_len, sm[0], sig_len, pk_single);
             
             if (ret != 0) {
-                fprintf(stderr, "[-] Mode 2 Warmup verification failed!\n");
+                fprintf(stderr, "[-] Mode 1 Warmup verification failed!\n");
                 abort();
             }
         }
@@ -250,9 +158,7 @@ bench(size_t num_keys, size_t runs_per_key, size_t warmup_runs, int mode)
             telemetry_data[i].verify_cycles = (end_time >= start_time) ? (end_time - start_time) : 0;
         }
 
-        // =========================================================
-        // DUMP MODE 2 BATCH VARIABLES TO DISK
-        // =========================================================
+        // DUMP MODE 1 BATCH VARIABLES TO DISK
         FILE *f_bpk = fopen("batch_pk.bin", "wb");
         if(f_bpk) { fwrite(pk_single, 1, CRYPTO_PUBLICKEYBYTES, f_bpk); fclose(f_bpk); }
 
@@ -271,9 +177,9 @@ bench(size_t num_keys, size_t runs_per_key, size_t warmup_runs, int mode)
     }
 
     // =====================================================================
-    // MODE 3: FIXED MESSAGE, RANDOM KEYS (Fresh Message Per Batch)
+    // MODE 2: FIXED MESSAGE, RANDOM KEYS
     // =====================================================================
-    if (mode == 3) {
+    if (mode == 2) {
         printf("    - Running Fixed-Message, Random-Key Suite...\n");
 
         // CPU WARMUP (Keygen, Sign & Verify)
@@ -293,7 +199,7 @@ bench(size_t num_keys, size_t runs_per_key, size_t warmup_runs, int mode)
             int ret = crypto_sign_open(w_msg_out, &msg_len, sm[0], sig_len, w_pk);
             
             if (ret != 0) {
-                fprintf(stderr, "[-] Mode 3 Warmup verification failed!\n");
+                fprintf(stderr, "[-] Mode 2 Warmup verification failed!\n");
                 abort();
             }
         }
@@ -302,7 +208,7 @@ bench(size_t num_keys, size_t runs_per_key, size_t warmup_runs, int mode)
         telemetry_data = calloc(total_runs, sizeof(TelemetryRow));
         rows_to_dump = total_runs;
 
-        // 🌟 1. Generate a FRESH static message challenge for THIS batch execution
+        // Generate a FRESH static message challenge for THIS batch execution
         unsigned char static_msg[32];
         if (randombytes(static_msg, m_len)) abort();
 
@@ -331,7 +237,7 @@ bench(size_t num_keys, size_t runs_per_key, size_t warmup_runs, int mode)
             telemetry_data[k].verify_cycles = (end_time >= start_time) ? (end_time - start_time) : 0;
         }
 
-        // 🌟 2. Dump all 1,000 keys and the single static message to SSD for Rust
+        // Dump all 1,000 keys and the single static message to SSD for Rust
         FILE *f_bpk = fopen("batch_pk.bin", "wb");
         if(f_bpk) { fwrite(pkbuf, 1, total_runs * CRYPTO_PUBLICKEYBYTES, f_bpk); fclose(f_bpk); }
 
@@ -344,9 +250,7 @@ bench(size_t num_keys, size_t runs_per_key, size_t warmup_runs, int mode)
         printf("    - Batch Run Complete: %zu keys evaluated against fresh static message.\n", total_runs);
     }
 
-    // =====================================================================
-    // EXPORT RAW BINARY
-    // =====================================================================
+    // EXPORT RAW BINARY TELEMETRY DATA
     FILE *fp = fopen("sqisign_telemetry.bin", "wb");
     if (fp != NULL && telemetry_data != NULL) {
         fwrite(telemetry_data, sizeof(TelemetryRow), rows_to_dump, fp);
@@ -384,15 +288,14 @@ main(int argc, char *argv[])
         
         if (strncmp(argv[i], "--mode=", 7) == 0) {
             if (strcmp(argv[i] + 7, "keygen") == 0 || strcmp(argv[i] + 7, "0") == 0) mode = 0;
-            else if (strcmp(argv[i] + 7, "sign") == 0 || strcmp(argv[i] + 7, "1") == 0) mode = 1;
-            else if (strcmp(argv[i] + 7, "fixed_key") == 0 || strcmp(argv[i] + 7, "2") == 0) mode = 2;
-            else if (strcmp(argv[i] + 7, "fixed_msg") == 0 || strcmp(argv[i] + 7, "3") == 0) mode = 3;
+            else if (strcmp(argv[i] + 7, "fixed_key") == 0 || strcmp(argv[i] + 7, "1") == 0) mode = 1;
+            else if (strcmp(argv[i] + 7, "fixed_msg") == 0 || strcmp(argv[i] + 7, "2") == 0) mode = 2;
             continue;
         }
     }
 
     if (help || iterations <= 0 || num_keys <= 0) {
-        printf("Usage: %s [--keys=<outer_loop>] [--iterations=<inner_loop>] [--warmup=<burn_in>] [--mode=<0|1>]\n", argv[0]);
+        printf("Usage: %s [--keys=<outer_loop>] [--iterations=<inner_loop>] [--warmup=<burn_in>] [--mode=<0|1|2>]\n", argv[0]);
         return 1;
     }
 

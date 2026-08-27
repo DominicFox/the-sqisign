@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// FILE UNUSED IN BENCHMARKING PROJECT, BUT RETAINED FOR REFERENCE PURPOSES
 
 #include <stdlib.h>
 #include <string.h>

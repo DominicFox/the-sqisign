@@ -66,6 +66,16 @@ if (ENABLE_SIGN)
         target_compile_definitions(stack_bench_${SVARIANT_LOWER} PUBLIC SQISIGN_VARIANT=${SVARIANT_LOWER})
     endforeach()
 
+    # Stack high-water probe -- links exactly as benchmark_binary so the
+    # measured code is the same code the timing sweep measures (LTO included).
+    foreach(SVARIANT ${SVARIANT_S})
+        string(TOLOWER ${SVARIANT} SVARIANT_LOWER)
+        add_executable(stack_probe_${SVARIANT_LOWER} stack_probe.c)
+        target_link_libraries(stack_probe_${SVARIANT_LOWER} PRIVATE sqisign_${SVARIANT_LOWER}_nistapi)
+        target_include_directories(stack_probe_${SVARIANT_LOWER} PRIVATE ../include ../src/common/generic/include)
+        target_compile_definitions(stack_probe_${SVARIANT_LOWER} PUBLIC SQISIGN_VARIANT=${SVARIANT_LOWER})
+    endforeach()
+
     # Fuzzing tool -- signature generation
     foreach(SVARIANT ${SVARIANT_S})
         string(TOLOWER ${SVARIANT} SVARIANT_LOWER)

@@ -1,5 +1,16 @@
 # SQIsign
 
+> **MSc Thesis Modifications:** 
+> This repository is a fork of the upstream reference implementation. It has been modified to integrate with a custom Rust benchmarking orchestrator for thesis evaluation. 
+> 
+> **Key Additions:**
+> * Added C profiling binaries:
+> * - `benchmark_binary.c` inside `the-sqisign/apps/`
+>   - `stack_probe.c` inside `the-sqisign/apps/`
+>   - `stack_probe_common.h` inside `the-sqisign/apps/`
+>   - `stackprobe.c` inside `the-sqisign/apps/`
+> * Modified relevant `CMakeLists.txt` to compile these benchmarking endpoints as static executable targets.
+
 This library is a C implementation of SQIsign, short for Short Quaternion and Isogeny Signature (from isogeny graphs of supersingular elliptic curves).
 
 ## Requirements

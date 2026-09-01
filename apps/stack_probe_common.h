@@ -1,11 +1,4 @@
 /* stack_probe_common.h -- shared driver for the per-primitive stack benchmark.
- *
- * A variant supplies an sp_suite_t (setup + three primitive thunks) and calls
- * sp_probe_main().  This file owns the CLI, the iteration loop, the binary
- * telemetry format read by the Rust orchestrator, and the CSV fallback.
- *
- * Binary output: a flat array of sp_row_t, no header, little-endian, matching
- * StackTelemetryRow in the Rust harness (src/models.rs).
  */
 #ifndef STACK_PROBE_COMMON_H
 #define STACK_PROBE_COMMON_H
@@ -38,7 +31,6 @@ typedef struct {
     void (*sign)(void *);   /* must use the key produced by keygen            */
     void (*verify)(void *); /* must use the signature produced by sign        */
     void (*teardown)(void);
-    /* Set to 0 by a thunk to flag a failed primitive; reset per iteration. */
     int *ok_flag;
 } sp_suite_t;
 
@@ -69,16 +61,13 @@ static int sp_flag(int argc, char **argv, const char *key)
     return 0;
 }
 
-/* Unknown arguments are ignored on purpose: the Rust orchestrator passes the
- * same --keys/--warmup/--mode flags it gives the timing binaries. */
+
 static int sp_probe_main(int argc, char **argv, const sp_suite_t *s)
 {
     long iters = sp_arg(argc, argv, "--iterations", 100);
     long stack_mb = sp_arg(argc, argv, "--stack-mb", SP_DEFAULT_STACK_MB);
     const char *out = sp_arg_str(argc, argv, "--out", SP_DEFAULT_OUT);
     int csv = sp_flag(argc, argv, "--csv");
-    /* The residency cross-check re-runs every primitive, doubling wall time.
-     * Worth it once per variant; skippable for long production sweeps. */
     int no_res = sp_flag(argc, argv, "--no-resident");
     size_t stack_bytes = (size_t)stack_mb << 20;
 

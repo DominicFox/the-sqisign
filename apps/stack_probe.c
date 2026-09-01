@@ -1,10 +1,4 @@
 /* stack_probe.c -- per-primitive stack high-water benchmark (NIST API).
- *
- * Companion to benchmark_binary.c: same three primitives, but the metric is
- * peak stack depth rather than cycles.  See stackprobe.h for the method.
- *
- * Usage: stack_probe_lvlX [--iterations=N] [--stack-mb=M] [--out=FILE]
- *                         [--csv] [--no-resident]
  */
 #include <stdint.h>
 #include <stdio.h>

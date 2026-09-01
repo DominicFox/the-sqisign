@@ -208,7 +208,7 @@ bench(size_t num_keys, size_t runs_per_key, size_t warmup_runs, int mode)
         telemetry_data = calloc(total_runs, sizeof(TelemetryRow));
         rows_to_dump = total_runs;
 
-        // 🌟 1. Generate a FRESH static message challenge for THIS batch execution
+        // Generate a FRESH static message challenge for THIS batch execution
         unsigned char static_msg[32];
         if (randombytes(static_msg, m_len)) abort();
 
@@ -237,7 +237,7 @@ bench(size_t num_keys, size_t runs_per_key, size_t warmup_runs, int mode)
             telemetry_data[k].verify_cycles = (end_time >= start_time) ? (end_time - start_time) : 0;
         }
 
-        // 🌟 2. Dump all 1,000 keys and the single static message to SSD for Rust
+        // Dump all 1,000 keys and the single static message to SSD for Rust
         FILE *f_bpk = fopen("batch_pk.bin", "wb");
         if(f_bpk) { fwrite(pkbuf, 1, total_runs * CRYPTO_PUBLICKEYBYTES, f_bpk); fclose(f_bpk); }
 

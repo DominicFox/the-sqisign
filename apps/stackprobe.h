@@ -1,11 +1,4 @@
 /* stackprobe.h -- measure the stack high-water mark of a single function call.
- *
- * Method: run the callee on a dedicated pthread whose stack we allocate
- * ourselves (mmap + PROT_NONE guard page), paint the unused region with a
- * magic word, run the callee, then scan upwards for the lowest word that
- * changed.  used = (SP at paint time) - (lowest modified address).
- *
- * Portable C11 + POSIX; no valgrind, no dtrace, no SIP changes.
  */
 #ifndef STACKPROBE_H
 #define STACKPROBE_H
@@ -19,9 +12,6 @@
 #include <unistd.h>
 
 #define SP_PATTERN 0xC0FFEEBADDEADBEDULL
-/* Gap between the painting frame and the painted region.  Zero is correct on
- * AArch64/x86-64 Darwin: neither ABI has a red zone, so nothing below sp is
- * live.  Raise it if this is ever ported to an ABI that does. */
 #define SP_MARGIN 0
 
 typedef struct {
@@ -33,9 +23,7 @@ typedef struct {
     int saturated;        /* out: 1 if fn reached the bottom of the paint    */
 } sp_ctx;
 
-/* Current stack pointer.  NOT __builtin_frame_address: on AArch64 that returns
- * the frame pointer (x29), which sits ABOVE sp -- painting from there would
- * overwrite our own locals. */
+/* Current stack pointer.*/
 __attribute__((always_inline)) static inline uintptr_t sp_current(void)
 {
 #if defined(__aarch64__)
@@ -77,9 +65,7 @@ static void *sp_thread(void *p)
     return NULL;
 }
 
-/* Returns bytes of stack used by fn(arg), or (size_t)-1 on error.
- * stack_bytes is the size of the throwaway stack (and of the painted region);
- * it must comfortably exceed the expected high-water mark. */
+/* Returns bytes of stack used by fn*/
 static size_t sp_measure(void (*fn)(void *), void *arg, size_t stack_bytes)
 {
     size_t pg = (size_t)sysconf(_SC_PAGESIZE);            /* 16384 on arm64 */
@@ -121,16 +107,7 @@ static size_t sp_measure(void (*fn)(void *), void *arg, size_t stack_bytes)
     return c.used;
 }
 
-/* Companion metric: no painting; count pages the kernel had to fault in.
- *
- * This is NOT the same quantity as sp_measure.  sp_measure returns the stack
- * pointer excursion -- what a thread must RESERVE.  This returns the pages
- * actually TOUCHED -- the RSS cost.  They coincide only when frames are
- * densely written.  A function that drops sp by 512 KiB and writes two words
- * of it measures 524360 B here and 32768 B there; both numbers are correct.
- * Where the two diverge, the gap is large sparsely-written frames, and both
- * are worth reporting: reserve size sizes the thread, touched size sizes RAM.
- * Page-granular (16 KiB on Apple silicon). */
+/* Companion metric: no painting; count pages touched in physical memory (resident set size) */
 typedef struct { void (*fn)(void *); void *arg; } sp_rctx;
 
 static void *sp_thread_raw(void *p)

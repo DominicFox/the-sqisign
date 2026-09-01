@@ -115,10 +115,10 @@ bench(size_t num_keys, size_t runs_per_key, size_t warmup_runs, int mode)
         for(size_t w = 0; w < warmup_runs; ++w) {
             sig_len = sm_len;
             
-            // 1. Sign the message using sm[0] (the first allocated buffer pointer)
+            // Sign the message using sm[0] (the first allocated buffer pointer)
             crypto_sign(sm[0], &sig_len, w_msg, 32, sk_single); 
             
-            // 2. Verify using the ACTUAL signature length (sig_len)
+            // Verify using the ACTUAL signature length (sig_len)
             int ret = crypto_sign_open(w_msg_out, &msg_len, sm[0], sig_len, pk_single);
             
             if (ret != 0) {
